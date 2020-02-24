@@ -73,10 +73,19 @@ public class SocketListener {
                                     bool matchPTR = Regex.IsMatch(match.ToString(), "type=PTR");
                                     if(matchPTR)
                                     {
-                                        var hostName = Dns.GetHostEntry(url).HostName;
-                                        SendMsgToClient(ref handler, url + ":PTR=" + hostName + "\n");
+                                        try
+                                        {
+                                            var hostName = Dns.GetHostEntry(url).HostName;
+                                            SendMsgToClient(ref handler,  "HTTP/1.1 200 OK\r\n\r\n" + url + ":PTR=" + hostName + "\n" );
+                                        }
+                                        catch (Exception)
+                                        {
+                                            SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\r\n\r\n");
+                                            
+                                        }
+                                        
                                     }
-                                    else SendMsgToClient(ref handler, "400 Bad Request.\n");
+                                    else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
                                     //SendMsgToClient(ref handler, "AHHOJ\n");
                                     
                                 }
@@ -86,33 +95,76 @@ public class SocketListener {
                                     bool matchA = Regex.IsMatch(match.ToString(), "type=A");
                                     if(matchA)
                                     {
-                                        IPAddress ipv4Address = GetIPV4Adress(url);
-                                        SendMsgToClient(ref handler, url + ":A=" + ipv4Address.ToString() + "\n");
-                                    } else SendMsgToClient(ref handler, "400 Bad Request.\n");
+                                        try
+                                        {
+                                            IPAddress ipv4Address = GetIPV4Adress(url);
+                                            SendMsgToClient(ref handler, "HTTP/1.1 200 OK\r\n\r\n" + url + ":A=" + ipv4Address.ToString() + "\n");
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\r\n\r\n");
+                                        }
+                                        
+                                    } else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
                                 }
                             }
 
                             }
                         catch(Exception)
                         {
-                            SendMsgToClient(ref handler, "400 Bad Request.\n");
+                            SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
                         }
                          
                         Console.WriteLine("-------------------------\n");
                         break;
                     }
+                    //akakolvek chyba vo formate POSTu -> 400
+                    //nenajdeny zaznam -> nevypise sa nic v tom riadku a pokracuje sa
                     case "POST":
                     {
                         Console.WriteLine(data);
                         Console.WriteLine("-------------------------\n");
-                      
+                        var splittedData = data.Split("\r\n\r\n")[1].Split("\n");
+                        foreach (var item in splittedData)
+                        {
+                            if(item == "") break;
+                            var adress = item.Split(':')[0];
+                            var type = item.Split(':')[1];
+                            try
+                            {
+                                switch (type)
+                                {
+
+                                    case "A":
+                                    {
+                                        IPAddress ipv4Address = GetIPV4Adress(adress);
+                                        SendMsgToClient(ref handler, adress + ":A=" + ipv4Address.ToString() + "\n");
+                                        break;
+                                    }
+                                    case "PTR":
+                                    {
+                                        var hostName = Dns.GetHostEntry(adress).HostName;
+                                        SendMsgToClient(ref handler,  adress + ":PTR=" + hostName + "\n" );
+                                        break;
+                                    }
+                                    default: 
+                                    break;
+
+                                }
+                            }
+                            catch (System.Exception)
+                            {
+                                
+                                
+                            }
+                        }
                         SendMsgToClient(ref handler, "AHHOJ\n");
                         Console.WriteLine("-------------------------\n");
                         break;
                     }
                     default:
                     {
-                        SendMsgToClient(ref handler, "405 Method Not Allowed.\n");
+                        SendMsgToClient(ref handler, "HTTP/1.1 405 Method Not Allowed\r\n\r\n");
                         break;
                     }
                 }
