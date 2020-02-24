@@ -65,20 +65,30 @@ public class SocketListener {
                         {
                            if (match != null)
                             {
-                                var url = match.ToString().Split('=')[1];
-                                url = url.Split('&')[0];
+                                var resolveArg = match.ToString().Split('=')[1];
+                                var url = resolveArg.Split('&')[0];
+                                //IP
                                 if(Char.IsNumber(url[0]))
                                 {
-                                    var hostName = Dns.GetHostEntry(url).HostName;
-                                    SendMsgToClient(ref handler, url + ":PTR=" + hostName + "\n");
+                                    bool matchPTR = Regex.IsMatch(match.ToString(), "type=PTR");
+                                    if(matchPTR)
+                                    {
+                                        var hostName = Dns.GetHostEntry(url).HostName;
+                                        SendMsgToClient(ref handler, url + ":PTR=" + hostName + "\n");
+                                    }
+                                    else SendMsgToClient(ref handler, "400 Bad Request.\n");
                                     //SendMsgToClient(ref handler, "AHHOJ\n");
                                     
                                 }
+                                //HOST
                                 else
                                 {
-                                    IPAddress ipv4Address = GetIPV4Adress(url);
-                                    SendMsgToClient(ref handler, url + ":A=" + ipv4Address.ToString() + "\n");
-                                    //SendMsgToClient(ref handler, "AHHOJ\n");
+                                    bool matchA = Regex.IsMatch(match.ToString(), "type=A");
+                                    if(matchA)
+                                    {
+                                        IPAddress ipv4Address = GetIPV4Adress(url);
+                                        SendMsgToClient(ref handler, url + ":A=" + ipv4Address.ToString() + "\n");
+                                    } else SendMsgToClient(ref handler, "400 Bad Request.\n");
                                 }
                             }
 
