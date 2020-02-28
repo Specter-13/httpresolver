@@ -1,6 +1,7 @@
 www.fit.vutbr.cz:A
 www.google.com:A
 www.seznam.cz:A
+spotify.com:A
 147.229.14.131:PTR
 ihned.cz:A
 

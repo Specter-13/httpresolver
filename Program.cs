@@ -16,11 +16,33 @@ public class SocketListener {
 
     public static int Main(String[] args) 
     {  
+        Console.WriteLine("Welcome to xspavo00 server!");
+        if(args.Length == 0)
+        {
+            Console.WriteLine("ERROR! No port specified!");  
+        }
+        else
+        {
+            try
+            {
+            int port = Int32.Parse(args[0]);
+            if(port >= 0 && port <= 65535 )
+            { 
+                Console.WriteLine("Listening port: " + port);  
+                StartListening(port);    
+            }  
+            else Console.WriteLine($"ERROR! Port out of range (0-65535).");
 
-        StartListening();                         
+            }
+            catch
+            {
+                Console.WriteLine($"ERROR! Unable to parse '{args[0]}'.");
+            }
+        }
+                           
         return 0;  
     }  
-    public static void StartListening() {  
+    public static void StartListening(int port) {  
         
         //Create socket for listening
         Listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp); 
@@ -28,158 +50,220 @@ public class SocketListener {
         {
               
             //Bind socket to port for listening
-            Listener.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6666)); 
+            Listener.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), port)); 
 
             //IPHostEntry hostInfo2 = Dns.GetHostEntry("77.75.75.176&"); 
                             
-            //Listen for one client
-            Listener.Listen(1); 
-            
+            //Listen for clients, max 5
+            Listener.Listen(5); 
+            Console.WriteLine("Starting server...");  
             while(true)
             {
+                Console.WriteLine("-------------------------");
                 Console.WriteLine("Waiting for a connection...");  
                 Socket handler = Listener.Accept(); 
+                Console.WriteLine("Request received!");  
                 
                 var data = GetDataFromSocket(ref handler); 
-                //tokezine incoming data into array
-                // var tokenizeArray = TokenizeData(ref data,'\n');
-                // //find method
-                // var method = TokenizeData(ref tokenizeArray[0],' ');
-                //get method from string
                 var method = data.Split(' ').First();
+                int ErrorType=0;
+                string PostString = "";
         
                 switch (method)
                 {
                     case "GET":
                     {
-                        Console.WriteLine("-------------------------\n");
-                        Console.WriteLine(data);
-                        Console.WriteLine(method);
-                        
-
-                        //GET /resolve?name=apple.com&type=A HTTP/1.1
-                        //GET /resolve?name="77.75.75.176"type=PTR HTTP/1.1
-                       // @"\b/resolve\?name=[a-z.0-9]+\b";
+                       Console.WriteLine("Type: GET");
+                       
+  
                         Match match = Regex.Match(data, PatternGET);
-                        try
+                        //check for correct pattern of request
+                        if (match.Success)
                         {
-                           if (match != null)
+                            //split arguments by delimeters
+                            var resolveArg = match.ToString().Split('=')[1];
+                            var url = resolveArg.Split('&')[0];
+                            //try parse ip adress from splitted part
+                            bool isIP = IPAddress.TryParse ( url, out System.Net.IPAddress address);
+                            //if is IP. check for type and resolve
+                            if(isIP)
                             {
-                                var resolveArg = match.ToString().Split('=')[1];
-                                var url = resolveArg.Split('&')[0];
-                                //IP
-                                if(Char.IsNumber(url[0]))
-                                {
-                                    bool matchPTR = Regex.IsMatch(match.ToString(), "type=PTR");
-                                    if(matchPTR)
-                                    {
-                                        try
-                                        {
-                                            var hostName = Dns.GetHostEntry(url).HostName;
-                                            SendMsgToClient(ref handler,  "HTTP/1.1 200 OK\r\n\r\n" + url + ":PTR=" + hostName + "\n" );
-                                        }
-                                        catch (Exception)
-                                        {
-                                            SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\r\n\r\n");
-                                            
-                                        }
-                                        
-                                    }
-                                    else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
-                                    //SendMsgToClient(ref handler, "AHHOJ\n");
-                                    
-                                }
-                                //HOST
-                                else
-                                {
-                                    bool matchA = Regex.IsMatch(match.ToString(), "type=A");
-                                    if(matchA)
-                                    {
-                                        try
-                                        {
-                                            IPAddress ipv4Address = GetIPV4Adress(url);
-                                            SendMsgToClient(ref handler, "HTTP/1.1 200 OK\r\n\r\n" + url + ":A=" + ipv4Address.ToString() + "\n");
-                                        }
-                                        catch (System.Exception)
-                                        {
-                                            SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\r\n\r\n");
-                                        }
-                                        
-                                    } else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
-                                }
+                                handler = ResolveIP(handler, match, url);
                             }
+                            //else is HOSTNAME
+                            else
+                            {
+                                //check for type
+                                bool matchA = Regex.IsMatch(match.ToString(), "type=A");
+                                if(matchA)
+                                {
+                                    //resolve
+                                    handler = ResolveHostName(handler, url);
 
+                                }
+                                else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\n\n");
                             }
-                        catch(Exception)
-                        {
-                            SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\r\n\r\n");
                         }
-                         
-                        Console.WriteLine("-------------------------\n");
+                        else
+                        {
+                            SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\n\n");
+                        }
+
+                        
+                        
+                      
                         break;
                     }
                     //akakolvek chyba vo formate POSTu -> 400
                     //nenajdeny zaznam -> nevypise sa nic v tom riadku a pokracuje sa
                     case "POST":
                     {
-                        Console.WriteLine(data);
-                        Console.WriteLine("-------------------------\n");
+                        Console.WriteLine("Type: POST");
                         var splittedData = data.Split("\r\n\r\n")[1].Split("\n");
+                        string adress= "";
+                        string type = "";
                         foreach (var item in splittedData)
                         {
-                            if(item == "") break;
-                            var adress = item.Split(':')[0];
-                            var type = item.Split(':')[1];
-                            try
+                            
+                            
+                           
+                            //check valid pattern
+                            var isValidPattern = Regex.IsMatch(item, "[a-z0-9.]+");
+                            if(isValidPattern)
                             {
-                                switch (type)
+                                var isDelimeter = Regex.IsMatch(item, ":");
+                                if(isDelimeter) 
                                 {
+                                    adress = item.Split(':')[0];
+                                    type = item.Split(':')[1];
+                                }
+                                else ErrorType = 2;
+                            } else continue;
+                            
 
-                                    case "A":
+                            switch (type)
+                            {
+
+                                case "A":
+                                {
+                                    try
                                     {
                                         IPAddress ipv4Address = GetIPV4Adress(adress);
-                                        SendMsgToClient(ref handler, adress + ":A=" + ipv4Address.ToString() + "\n");
-                                        break;
+                                        PostString += adress + ":A=" + ipv4Address.ToString() + "\n";
                                     }
-                                    case "PTR":
+                                    catch 
+                                    {
+                                        ErrorType = 1;
+                                    }
+                                   
+                                    break;
+                                }
+                                case "PTR":
+                                {
+                                    try
                                     {
                                         var hostName = Dns.GetHostEntry(adress).HostName;
-                                        SendMsgToClient(ref handler,  adress + ":PTR=" + hostName + "\n" );
-                                        break;
+                                        PostString += adress + ":PTR=" + hostName + "\n" ;
+                                        
                                     }
-                                    default: 
+                                    catch 
+                                    {
+                                        ErrorType = 1;
+                                    }
                                     break;
-
                                 }
-                            }
-                            catch (System.Exception)
-                            {
+                                default:
+                                {
+                                    ErrorType = 2;
+                                    
+                                    break;
+                                }
                                 
-                                
+
                             }
+                            
+                            
                         }
-                        SendMsgToClient(ref handler, "AHHOJ\n");
-                        Console.WriteLine("-------------------------\n");
+
+                        switch (ErrorType)
+                        {
+                            case 0:
+                                SendMsgToClient(ref handler, "HTTP/1.1 200 OK\n\n");
+                                SendMsgToClient(ref handler, PostString);
+                             break;
+                            case 1:
+                                SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\n\n");
+                                SendMsgToClient(ref handler, PostString);
+                             break;
+                            case 2:
+                                SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\n\n");
+                                SendMsgToClient(ref handler, PostString);
+                             break;
+                            default:
+                             break;
+                        }
+                        
+
+                        
                         break;
                     }
                     default:
                     {
-                        SendMsgToClient(ref handler, "HTTP/1.1 405 Method Not Allowed\r\n\r\n");
+                        SendMsgToClient(ref handler, "HTTP/1.1 405 Method Not Allowed\n\n");
                         break;
                     }
                 }
-                    handler.Shutdown(SocketShutdown.Both);  
-                    handler.Close();  
-                 //NETREBA TO VOBEC TOKENIZOVAT, TREBA REGEXY :D 
-                
-            }
+            handler.Shutdown(SocketShutdown.Both);  
+            handler.Close(); 
+            
+          
        
+            }
         }
         catch (Exception e)
         {
           Console.WriteLine(e.ToString());  
         }
   
+    }
+    //                                                                                                          
+    private static Socket ResolveHostName(Socket handler, string url)
+    {
+        try
+        {
+            IPAddress ipv4Address = GetIPV4Adress(url);
+            SendMsgToClient(ref handler, "HTTP/1.1 200 OK\n\n");
+            SendMsgToClient(ref handler, url + ":A=" + ipv4Address.ToString() + "\n");
+        }
+        catch (System.Exception)
+        {
+            SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\n\n");
+        }
+
+        return handler;
+    }
+
+    private static Socket ResolveIP(Socket handler, Match match, string url)
+    {
+        bool matchPTR = Regex.IsMatch(match.ToString(), "type=PTR");
+        if (matchPTR)
+        {
+            try
+            {
+                var hostName = Dns.GetHostEntry(url).HostName;
+                SendMsgToClient(ref handler, "HTTP/1.1 200 OK\n\n");
+                SendMsgToClient(ref handler, url + ":PTR=" + hostName + "\n");
+
+            }
+            catch (Exception)
+            {
+                SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\n\n");
+
+            }
+
+        }
+        else SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\n\n");
+        return handler;
     }
 
     private static IPAddress GetIPV4Adress(string url)
@@ -211,11 +295,5 @@ public class SocketListener {
         handler.Send(msgString);  
         
     }
-
-    public static string TokenizeData(string data, char delimeter) 
-    {
-        return data.Split(delimeter)[0];
-    }
-
 
 }  
