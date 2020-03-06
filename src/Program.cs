@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 
 public class SocketListener {
   
+  
     private const string PatternPOST = @"([a-z.]+\s)|([0-9.]+\s)";
     private const string PatternGET = @"/resolve\?name=[a-z.0-9]+\&type=(PTR|A)\s+";
     // Incoming data from the client.  
@@ -42,6 +43,12 @@ public class SocketListener {
                            
         return 0;  
     }  
+    enum ErrorType
+  {
+      BadRequest,
+      NotFound,
+      ItIsOkay
+  }
     public static void StartListening(int port) {  
         
         //Create socket for listening
@@ -55,8 +62,9 @@ public class SocketListener {
             //IPHostEntry hostInfo2 = Dns.GetHostEntry("77.75.75.176&"); 
                             
             //Listen for clients, max 5
-            Listener.Listen(5); 
+            Listener.Listen(10); 
             Console.WriteLine("Starting server...");  
+            var errorType = ErrorType.BadRequest;
             while(true)
             {
                 Console.WriteLine("-------------------------");
@@ -66,7 +74,6 @@ public class SocketListener {
                 
                 var data = GetDataFromSocket(ref handler); 
                 var method = data.Split(' ').First();
-                int ErrorType=0;
                 string PostString = "";
         
                 switch (method)
@@ -119,11 +126,12 @@ public class SocketListener {
                     case "POST":
                     {
                         Console.WriteLine("Type: POST");
+                        Console.WriteLine(data);
                         var splittedData = data.Split("\r\n\r\n")[1].Split("\n");
-                        string adress= "";
-                        string type = "";
                         foreach (var item in splittedData)
                         {
+                            string adress= "";
+                            string type = "";
                             
                             
                            
@@ -137,7 +145,11 @@ public class SocketListener {
                                     adress = item.Split(':')[0];
                                     type = item.Split(':')[1];
                                 }
-                                else ErrorType = 2;
+                                else 
+                                {
+                                    if(errorType == ErrorType.ItIsOkay) continue;
+                                    else errorType = ErrorType.BadRequest;
+                                }
                             } else continue;
                             
 
@@ -149,11 +161,14 @@ public class SocketListener {
                                     try
                                     {
                                         IPAddress ipv4Address = GetIPV4Adress(adress);
+                                        if(ipv4Address.ToString() == adress) continue;
                                         PostString += adress + ":A=" + ipv4Address.ToString() + "\n";
+                                        errorType = ErrorType.ItIsOkay;
                                     }
                                     catch 
                                     {
-                                        ErrorType = 1;
+                                        if(errorType == ErrorType.ItIsOkay) continue;
+                                        else errorType = ErrorType.NotFound;
                                     }
                                    
                                     break;
@@ -163,18 +178,22 @@ public class SocketListener {
                                     try
                                     {
                                         var hostName = Dns.GetHostEntry(adress).HostName;
+                                        if(hostName == adress) continue;
                                         PostString += adress + ":PTR=" + hostName + "\n" ;
+                                        errorType = ErrorType.ItIsOkay;
                                         
                                     }
                                     catch 
                                     {
-                                        ErrorType = 1;
+                                        if(errorType == ErrorType.ItIsOkay) continue;
+                                        else errorType = ErrorType.NotFound;
                                     }
                                     break;
                                 }
                                 default:
                                 {
-                                    ErrorType = 2;
+                                    if(errorType == ErrorType.ItIsOkay) continue;
+                                    else errorType = ErrorType.BadRequest;
                                     
                                     break;
                                 }
@@ -185,26 +204,22 @@ public class SocketListener {
                             
                         }
 
-                        switch (ErrorType)
+                        switch (errorType)
                         {
-                            case 0:
+                            case ErrorType.ItIsOkay:
                                 SendMsgToClient(ref handler, "HTTP/1.1 200 OK\n\n");
                                 SendMsgToClient(ref handler, PostString);
                              break;
-                            case 1:
+                            case ErrorType.NotFound:
                                 SendMsgToClient(ref handler, "HTTP/1.1 404 NotFound\n\n");
                                 SendMsgToClient(ref handler, PostString);
                              break;
-                            case 2:
+                            case ErrorType.BadRequest:
                                 SendMsgToClient(ref handler, "HTTP/1.1 400 Bad Request\n\n");
                                 SendMsgToClient(ref handler, PostString);
                              break;
-                            default:
-                             break;
+                            
                         }
-                        
-
-                        
                         break;
                     }
                     default:
@@ -215,9 +230,7 @@ public class SocketListener {
                 }
             handler.Shutdown(SocketShutdown.Both);  
             handler.Close(); 
-            
-          
-       
+
             }
         }
         catch (Exception e)
@@ -271,6 +284,8 @@ public class SocketListener {
         return Array.Find(
         Dns.GetHostEntry(url).AddressList,
         a => a.AddressFamily == AddressFamily.InterNetwork);
+        //return (Dns.GetHostEntry(url).AddressList[0]);
+        
     }
 
     public static string GetDataFromSocket(ref Socket handler) 
@@ -295,5 +310,6 @@ public class SocketListener {
         handler.Send(msgString);  
         
     }
+
 
 }  

@@ -3,5 +3,8 @@ www.google.com:A
 www.seznam.cz:A
 spotify.com:A
 147.229.14.131:PTR
+aaa
 ihned.cz:A
+
+
 

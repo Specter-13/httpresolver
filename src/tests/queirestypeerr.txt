@@ -1,0 +1,6 @@
+www.fit.vutbr.cz:PTR
+www.google.com:A
+www.brno.cz:A
+www.pornhub.com:A
+34.213.147.57:A
+147.229.2.90:PTR

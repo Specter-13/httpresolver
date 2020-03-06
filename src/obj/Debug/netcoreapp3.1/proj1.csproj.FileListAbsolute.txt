@@ -1,0 +1,11 @@
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1.deps.json
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1.runtimeconfig.json
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1.runtimeconfig.dev.json
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1.dll
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/bin/Debug/netcoreapp3.1/proj1.pdb
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/obj/Debug/netcoreapp3.1/proj1.csprojAssemblyReference.cache
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/obj/Debug/netcoreapp3.1/proj1.AssemblyInfoInputs.cache
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/obj/Debug/netcoreapp3.1/proj1.AssemblyInfo.cs
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/obj/Debug/netcoreapp3.1/proj1.dll
+/home/dado/Desktop/Programming/IPK/proj1/resolver/src/obj/Debug/netcoreapp3.1/proj1.pdb
