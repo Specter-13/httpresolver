@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 public class Resolver {
   
   
-    private const string PatternPOST = @"([a-z.]+\s)|([0-9.]+\s)";
+    private const string PatternPOST = @"POST /dns-query HTTP/1.1\s*$";
     private const string PatternGET = @"/resolve\?name=[a-z.0-9]+\&type=(PTR|A)\s+";
     // Incoming data from the client.  
     static byte[] Data;  
@@ -123,81 +123,87 @@ public class Resolver {
                     case "POST":
                     {
                         Console.WriteLine("Type: POST");
-                        Console.WriteLine(data);
+                        var firstLine = data.Split("\n")[0];
                         var splittedData = data.Split("\r\n\r\n")[1].Split("\n");
-                        foreach (var item in splittedData)
+                        bool IsValidPost = Regex.IsMatch(firstLine, PatternPOST);
+                        if(IsValidPost)
                         {
-                            string address = "";
-                            string type = "";
-
-                            //check valid pattern
-                            var isValidPattern = Regex.IsMatch(item, "[a-z0-9.]+");
-                            if(isValidPattern)
+                            foreach (var item in splittedData)
                             {
-                                var isDelimeter = Regex.IsMatch(item, ":");
-                                if(isDelimeter) 
-                                {
-                                    address = item.Split(':')[0];
-                                    type = item.Split(':')[1];
-                                }
-                                else 
-                                {
-                                    if(errorType == ErrorType.ItIsOkay) continue;
-                                    else errorType = ErrorType.BadRequest;
-                                }
-                            } else continue;
-                            
+                                string address = "";
+                                string type = "";
 
-                            switch (type)
-                            {
-
-                                case "A":
+                                //check valid pattern
+                                var isValidPattern = Regex.IsMatch(item, "[a-z0-9.]+");
+                                if(isValidPattern)
                                 {
-                                    try
+                                    var isDelimeter = Regex.IsMatch(item, ":");
+                                    if(isDelimeter) 
                                     {
-                                        IPAddress ipv4Address = GetIPV4Address(address);
-                                        if(ipv4Address.ToString() == address) continue;
-                                        PostString += address + ":A=" + ipv4Address.ToString() + "\n";
-                                        errorType = ErrorType.ItIsOkay;
+                                        address = item.Split(':')[0];
+                                        type = item.Split(':')[1];
                                     }
-                                    catch 
+                                    else 
                                     {
                                         if(errorType == ErrorType.ItIsOkay) continue;
-                                        else errorType = ErrorType.NotFound;
+                                        else errorType = ErrorType.BadRequest;
                                     }
-                                   
-                                    break;
-                                }
-                                case "PTR":
-                                {
-                                    try
-                                    {
-                                        var hostName = Dns.GetHostEntry(address).HostName;
-                                        if(hostName == address) continue;
-                                        PostString += address + ":PTR=" + hostName + "\n" ;
-                                        errorType = ErrorType.ItIsOkay;
-                                        
-                                    }
-                                    catch 
-                                    {
-                                        if(errorType == ErrorType.ItIsOkay) continue;
-                                        else errorType = ErrorType.NotFound;
-                                    }
-                                    break;
-                                }
-                                default:
-                                {
-                                    if(errorType == ErrorType.ItIsOkay) continue;
-                                    else errorType = ErrorType.BadRequest;
-                                    
-                                    break;
-                                }
+                                } else continue;
                                 
 
+                                switch (type)
+                                {
+
+                                    case "A":
+                                    {
+                                        try
+                                        {
+                                            IPAddress ipv4Address = GetIPV4Address(address);
+                                            if(ipv4Address.ToString() == address) continue;
+                                            PostString += address + ":A=" + ipv4Address.ToString() + "\n";
+                                            errorType = ErrorType.ItIsOkay;
+                                        }
+                                        catch 
+                                        {
+                                            if(errorType == ErrorType.ItIsOkay) continue;
+                                            else errorType = ErrorType.NotFound;
+                                        }
+                                    
+                                        break;
+                                    }
+                                    case "PTR":
+                                    {
+                                        try
+                                        {
+                                            var hostName = Dns.GetHostEntry(address).HostName;
+                                            if(hostName == address) continue;
+                                            PostString += address + ":PTR=" + hostName + "\n" ;
+                                            errorType = ErrorType.ItIsOkay;
+                                            
+                                        }
+                                        catch 
+                                        {
+                                            if(errorType == ErrorType.ItIsOkay) continue;
+                                            else errorType = ErrorType.NotFound;
+                                        }
+                                        break;
+                                    }
+                                    default:
+                                    {
+                                        if(errorType == ErrorType.ItIsOkay) continue;
+                                        else errorType = ErrorType.BadRequest;
+                                        
+                                        break;
+                                    }
+                                    
+
+                                }
+                                
+                                
                             }
                             
-                            
                         }
+                        else errorType = ErrorType.BadRequest;
 
                         switch (errorType)
                         {
