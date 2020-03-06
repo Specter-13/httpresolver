@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 
-public class SocketListener {
+public class Resolver {
   
   
     private const string PatternPOST = @"([a-z.]+\s)|([0-9.]+\s)";
@@ -13,8 +13,12 @@ public class SocketListener {
     // Incoming data from the client.  
     static byte[] Data;  
     static Socket Listener; 
-
-
+    enum ErrorType
+    {
+        BadRequest,
+        NotFound,
+        ItIsOkay
+    }
     public static int Main(String[] args) 
     {  
         Console.WriteLine("Welcome to xspavo00 server!");
@@ -43,12 +47,8 @@ public class SocketListener {
                            
         return 0;  
     }  
-    enum ErrorType
-  {
-      BadRequest,
-      NotFound,
-      ItIsOkay
-  }
+//---------------------------------------------------------------------    
+ 
     public static void StartListening(int port) {  
         
         //Create socket for listening
@@ -58,10 +58,8 @@ public class SocketListener {
               
             //Bind socket to port for listening
             Listener.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), port)); 
-
-            //IPHostEntry hostInfo2 = Dns.GetHostEntry("77.75.75.176&"); 
                             
-            //Listen for clients, max 5
+            //Listen for clients, max 10
             Listener.Listen(10); 
             Console.WriteLine("Starting server...");  
             var errorType = ErrorType.BadRequest;
@@ -90,7 +88,7 @@ public class SocketListener {
                             //split arguments by delimeters
                             var resolveArg = match.ToString().Split('=')[1];
                             var url = resolveArg.Split('&')[0];
-                            //try parse ip adress from splitted part
+                            //try parse ip address from splitted part
                             bool isIP = IPAddress.TryParse ( url, out System.Net.IPAddress address);
                             //if is IP. check for type and resolve
                             if(isIP)
@@ -121,8 +119,7 @@ public class SocketListener {
                       
                         break;
                     }
-                    //akakolvek chyba vo formate POSTu -> 400
-                    //nenajdeny zaznam -> nevypise sa nic v tom riadku a pokracuje sa
+                   
                     case "POST":
                     {
                         Console.WriteLine("Type: POST");
@@ -130,11 +127,9 @@ public class SocketListener {
                         var splittedData = data.Split("\r\n\r\n")[1].Split("\n");
                         foreach (var item in splittedData)
                         {
-                            string adress= "";
+                            string address = "";
                             string type = "";
-                            
-                            
-                           
+
                             //check valid pattern
                             var isValidPattern = Regex.IsMatch(item, "[a-z0-9.]+");
                             if(isValidPattern)
@@ -142,7 +137,7 @@ public class SocketListener {
                                 var isDelimeter = Regex.IsMatch(item, ":");
                                 if(isDelimeter) 
                                 {
-                                    adress = item.Split(':')[0];
+                                    address = item.Split(':')[0];
                                     type = item.Split(':')[1];
                                 }
                                 else 
@@ -160,9 +155,9 @@ public class SocketListener {
                                 {
                                     try
                                     {
-                                        IPAddress ipv4Address = GetIPV4Adress(adress);
-                                        if(ipv4Address.ToString() == adress) continue;
-                                        PostString += adress + ":A=" + ipv4Address.ToString() + "\n";
+                                        IPAddress ipv4Address = GetIPV4Address(address);
+                                        if(ipv4Address.ToString() == address) continue;
+                                        PostString += address + ":A=" + ipv4Address.ToString() + "\n";
                                         errorType = ErrorType.ItIsOkay;
                                     }
                                     catch 
@@ -177,9 +172,9 @@ public class SocketListener {
                                 {
                                     try
                                     {
-                                        var hostName = Dns.GetHostEntry(adress).HostName;
-                                        if(hostName == adress) continue;
-                                        PostString += adress + ":PTR=" + hostName + "\n" ;
+                                        var hostName = Dns.GetHostEntry(address).HostName;
+                                        if(hostName == address) continue;
+                                        PostString += address + ":PTR=" + hostName + "\n" ;
                                         errorType = ErrorType.ItIsOkay;
                                         
                                     }
@@ -244,7 +239,7 @@ public class SocketListener {
     {
         try
         {
-            IPAddress ipv4Address = GetIPV4Adress(url);
+            IPAddress ipv4Address = GetIPV4Address(url);
             SendMsgToClient(ref handler, "HTTP/1.1 200 OK\n\n");
             SendMsgToClient(ref handler, url + ":A=" + ipv4Address.ToString() + "\n");
         }
@@ -279,12 +274,11 @@ public class SocketListener {
         return handler;
     }
 
-    private static IPAddress GetIPV4Adress(string url)
+    private static IPAddress GetIPV4Address(string url)
     {
         return Array.Find(
         Dns.GetHostEntry(url).AddressList,
         a => a.AddressFamily == AddressFamily.InterNetwork);
-        //return (Dns.GetHostEntry(url).AddressList[0]);
         
     }
 
