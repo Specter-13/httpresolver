@@ -83,6 +83,8 @@ Response:
 
 # **Important notes:**
 ## Post method
+**Please wait for `"Waiting for connection.."` statement on server console. Only when this statement is showed, requests can be sent!**  
+  
 File, which is required for sending data with POST method, is handled as follows:  
 - Empty lines are ignored.
 - If at least one translation of query is successful, 200 OK is always returned despite others errors in file, so wrong lines are skipped.
@@ -92,3 +94,6 @@ File, which is required for sending data with POST method, is handled as follows
 
 # **Reference:**
 [Socket programming Microsoft Documentation](https://docs.microsoft.com/en-us/dotnet/framework/network-programming/sockets)
+
+# **Contacts:**
+<xspavo00@stud.fit.vutbr.cz>
