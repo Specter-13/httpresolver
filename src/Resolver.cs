@@ -62,9 +62,9 @@ public class Resolver {
             //Listen for clients, max 10
             Listener.Listen(10); 
             Console.WriteLine("Starting server...");  
-            var errorType = ErrorType.BadRequest;
             while(true)
             {
+                var errorType = ErrorType.BadRequest;
                 Console.WriteLine("-------------------------");
                 Console.WriteLine("Waiting for a connection...");  
                 Socket handler = Listener.Accept(); 
